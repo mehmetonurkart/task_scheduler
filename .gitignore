@@ -1,3 +1,11 @@
+*.elf
+*.bin
+*.d
+*.o
+*.su
+*.cylo
+*.map
+*.list
 External_Library/doxygen/html/search/pages_8.js
 External_Library/doxygen/html/search/pages_9.js
 External_Library/doxygen/html/search/pages_a.js
