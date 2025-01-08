@@ -34,10 +34,10 @@
 #define SIZE_SCHEDULER_STACK	1024U
 
 #define SRAM_START				0x20000000U
-#define SIZE_SRAM				(128 * (1024))
+#define SIZE_SRAM				( (128) * (1024))
 #define SRAM_END				((SRAM_START) + (SIZE_SRAM))
 
-#define T1_STACK_START			(SRAM_END)
+#define T1_STACK_START			SRAM_END
 #define T2_STACK_START			((SRAM_END) - (1 * SIZE_TASK_STACK))
 #define T3_STACK_START			((SRAM_END) - (2 * SIZE_TASK_STACK))
 #define T4_STACK_START			((SRAM_END) - (3 * SIZE_TASK_STACK))
@@ -48,7 +48,7 @@
 #define HSI_CLOCK				16000000U
 #define SYSTICK_TIM_CLK 		HSI_CLOCK
 
-#define DUMMY_XPSR				0x00100000
+#define DUMMY_XPSR				0x01000000
 #define LR_PSP_TO_PSP			0xFFFFFFFD
 
 #define RELOAD_VALUE_OFFSET		1 /* The * RELOAD value is calculated according to its use. For example, to generate a multi-shot
