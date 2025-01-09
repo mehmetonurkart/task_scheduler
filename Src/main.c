@@ -105,7 +105,7 @@ uint32 g_tick_count = INITIAL_ZERO;
  * @{
  */
 
-void idle_tasks(void); 	  /*!  This is task idle */
+void idle_task(void); 	  /*!  This is task idle */
 void task1_handler(void); /*!  This is task 1 */
 void task2_handler(void); /*!  This is task 2 */
 void task3_handler(void); /*!  This is task 3 */
@@ -145,20 +145,18 @@ void unblock_tasks(void);
 /********************************************************************************
 *@brief   Main function to initialize the task scheduler and start the system.
 *@details
-*         - Processor faults are enabled for debugging.
-*         - Scheduler stack is initialized at a specific memory address.
-*         - Task handlers are assigned to appropriate task functions.
-*         - Task stacks are initialized for each task.
-*         - The system tick timer is configured for periodic interrupts.
-*         - The processor stack pointer is switched to the process stack pointer (PSP).
-*         - Execution begins with the first task.
+*         This function is the entry point for the system. It sets up the processor
+*         faults, initializes the scheduler stack, task stacks, and peripherals.
+*         The SysTick timer is configured to handle task scheduling, and the
+*         processor stack pointer is switched to the process stack pointer (PSP).
+*         Finally, Task 1 is started as the initial task, and the system enters an
+*         infinite loop.
 *********************************************************************************
 *@param[in]  None
 *@param[out] None
 *@note
-*         Ensure that each task handler points to a valid task function.
-*         This implementation assumes TASK1 to TASK4 macros and TICK_HZ constant
-*         are properly defined in the project configuration.
+*         Ensure that all hardware peripherals and system initialization functions
+*         are called before switching to the PSP and entering the task execution phase.
 *@return     None
 ********************************************************************************/
 int main(void)
@@ -181,12 +179,18 @@ int main(void)
 }
 
 /********************************************************************************
-*@brief   None
-*@details None
+*@brief   Idle task for the system.
+*@details
+*         The idle task runs when no other tasks are ready to execute. It is an
+*         essential component of the scheduler, ensuring that the CPU is not left
+*         idle or in an unknown state.
 *********************************************************************************
 *@param[in]  None
 *@param[out] None
-*@note       None
+*@note
+*         - The idle task must have the lowest priority in the system.
+*         - It can be extended to include power-saving features such as entering
+*           low-power modes when the CPU is not required.
 *@return     None
 ********************************************************************************/
 void idle_task(void)
@@ -195,19 +199,19 @@ void idle_task(void)
 }
 
 /********************************************************************************
-*@brief   Task 1 handler function.
+*@brief   Handles Task 1 functionality.
 *@details
-*         The function represents the execution of Task 1. It enters an infinite
-*         loop where it repeatedly outputs a message to the console to indicate
-*         that Task 1 is running.
+*         Task 1 toggles the state of a green LED in 1-second intervals.
+*         The task turns the LED on, waits for a delay of 1 second, and then
+*         turns it off, repeating this behavior indefinitely.
 *********************************************************************************
 *@param[in]  None
 *@param[out] None
 *@note
-*         - Ensure the task scheduling mechanism allows proper context switching
-*           so this task does not block other tasks.
-*         - The use of `printf` may not be thread-safe in embedded environments;
-*           consider using a safer alternative if multitasking is used.
+*         - The `task_delay` function ensures that the task scheduler handles the
+*           timing, allowing other tasks to execute during the delay period.
+*         - Ensure `LED_GREEN` is defined, and the `led_on`, `led_off`, and
+*           `task_delay` functions are properly implemented.
 *@return     None
 ********************************************************************************/
 void task1_handler(void)
@@ -222,18 +226,19 @@ void task1_handler(void)
 }
 
 /********************************************************************************
-*@brief   Task 2 handler function.
+*@brief   Handles Task 2 functionality.
 *@details
-*         The function defines the behavior of Task 2. It enters an infinite loop
-*         and continuously outputs a message to indicate that Task 2 is running.
+*         Task 2 toggles the state of an orange LED in 500-millisecond intervals.
+*         The task turns the LED on, waits for a delay of 500 milliseconds, and
+*         then turns it off, repeating this behavior indefinitely.
 *********************************************************************************
 *@param[in]  None
 *@param[out] None
 *@note
-*         - Proper task scheduling or time-slicing should ensure this function
-*           does not block other tasks in a multitasking environment.
-*         - Replace `printf` with a lightweight or thread-safe alternative for
-*           real-time or resource-constrained systems.
+*         - The `task_delay` function ensures efficient time management by allowing
+*           other tasks to run during the delay period.
+*         - Ensure `LED_ORANGE` is defined, and the `led_on`, `led_off`, and
+*           `task_delay` functions are properly implemented and functional.
 *@return     None
 ********************************************************************************/
 void task2_handler(void)
@@ -248,19 +253,19 @@ void task2_handler(void)
 }
 
 /********************************************************************************
-*@brief   Task 3 handler function.
+*@brief   Handles Task 3 functionality.
 *@details
-*         This function implements the execution logic for Task 3. It operates
-*         in an infinite loop and outputs a message to indicate that Task 3 is
-*         active and running.
+*         Task 3 toggles the state of a blue LED in 250-millisecond intervals.
+*         The task turns the LED on, waits for a delay of 250 milliseconds, and
+*         then turns it off, repeating this behavior indefinitely.
 *********************************************************************************
 *@param[in]  None
 *@param[out] None
 *@note
-*         - Ensure this function is managed within a task scheduler to prevent
-*           monopolizing the processor resources.
-*         - `printf` may introduce delays or synchronization issues; consider
-*           using a lightweight or thread-safe alternative if required.
+*         - The `task_delay` function helps other tasks run during the delay,
+*           making the system more efficient and responsive.
+*         - Ensure `LED_BLUE` is properly defined, and the `led_on`, `led_off`,
+*           and `task_delay` functions are properly implemented.
 *@return     None
 ********************************************************************************/
 void task3_handler(void)
@@ -275,19 +280,20 @@ void task3_handler(void)
 }
 
 /********************************************************************************
-*@brief   Task 4 handler function.
+*@brief   Handles Task 4 functionality.
 *@details
-*         This function defines the execution logic for Task 4. It continuously
-*         executes in an infinite loop and prints a message to indicate Task 4
-*         is active and running.
+*         Task 4 toggles the state of a red LED in 125-millisecond intervals.
+*         The task turns the LED on, waits for a delay of 125 milliseconds, and
+*         then turns it off, repeating this behavior indefinitely.
 *********************************************************************************
 *@param[in]  None
 *@param[out] None
 *@note
-*         - This function should be part of a task scheduler or time-slicing
-*           mechanism to ensure fair execution of other tasks.
-*         - Use of `printf` in a real-time system may lead to blocking or delays;
-*           consider alternatives suited for embedded environments.
+*         - The `task_delay` function provides a time-based delay, enabling
+*           cooperative multitasking and ensuring other tasks can execute during
+*           this period.
+*         - Ensure `LED_RED` is defined, and the `led_on`, `led_off`, and
+*           `task_delay` functions are implemented correctly.
 *@return     None
 ********************************************************************************/
 void task4_handler(void)
@@ -302,21 +308,20 @@ void task4_handler(void)
 }
 
 /********************************************************************************
-*@brief   Initialize the SysTick timer with a specific tick frequency.
+*@brief   Initializes the SysTick timer.
 *@details
-*         This function configures the SysTick timer to generate interrupts at a
-*         frequency specified by the `tick_hz` parameter. It sets the reload value
-*         for the timer, enables the SysTick exception, selects the processor clock
-*         as the timer source, and enables the timer.
+*         This function sets up the SysTick timer to generate periodic interrupts
+*         based on the desired tick frequency (`tick_hz`). It configures the
+*         SysTick Reload Value Register (SRVR) with the correct tick count, sets
+*         the clock source to the processor's clock, and enables the SysTick
+*         exception request.
 *********************************************************************************
-*@param[in]  tick_hz: The desired tick frequency (in Hertz) of the SysTick timer.
-*                     This determines the period between interrupts.
+*@param[in]  tick_hz     The desired SysTick interrupt frequency in Hertz (ticks per second).
 *@param[out] None
 *@note
-*         - Ensure that `SYSTICK_TIM_CLK` and `RELOAD_VALUE_OFFSET` are defined
-*           appropriately in the system configuration.
-*         - This configuration assumes the processor is using the system clock
-*           as the source for the SysTick timer.
+*         - Make sure that `SYSTICK_TIM_CLK` and `RELOAD_VALUE_OFFSET` are defined appropriately.
+*         - The SysTick timer is configured to generate periodic interrupts at the specified frequency.
+*         - SysTick exception handling must be implemented to ensure it works as expected.
 *@return     None
 ********************************************************************************/
 void init_systick_timer(uint32 tick_hz)
@@ -367,24 +372,18 @@ __attribute__ ((naked)) void init_scheduler_stack(uint32 sched_top_of_stack)
 }
 
 /********************************************************************************
-*@brief   Initialize the task stacks for all tasks.
+*@brief   Initializes the task stack and sets up task control blocks (TCB).
 *@details
-*         This function sets up the stack for each task in the system. It assumes that
-*         task control blocks (TCBs) are already allocated for each task, and it
-*         populates the stacks with necessary initialization values, such as registers
-*         and the program counter (PC). The function iterates through all tasks, setting
-*         the stack with a dummy xPSR value, the task handler function address, and initial
-*         values for the registers.
+*         This function initializes the stacks for each task, including the idle task and user-defined tasks (TASK1, TASK2, TASK3, TASK4).
+*         It sets up the `current_state`, `psp_value`, and `task_handler` for each task. The task stacks are initialized with the
+*         proper values for the initial state, program counter, link register, and registers.
 *********************************************************************************
 *@param[in]  None
 *@param[out] None
 *@note
-*         - The function assumes that `psp_of_tasks` is an array of pointers to
-*           task-specific stack pointers and that `task_handlers` is an array of
-*           function pointers for each task handler.
-*         - `NUMBEROFTASK` should reflect the total number of tasks in the system.
-*         - Ensure that all task stacks are properly aligned to the required boundary
-*           for ARM processors.
+*         - Ensure that stack memory (`T1_STACK_START`, `T2_STACK_START`, etc.) is correctly allocated before calling this function.
+*         - The task control blocks (`user_tasks[]`) should be initialized properly.
+*         - This function ensures that when a task is scheduled, it will resume execution from the correct state in its stack.
 *@return     None
 ********************************************************************************/
 void init_tasks_stack (void)
@@ -462,20 +461,16 @@ void enable_processor_faults (void)
 }
 
 /********************************************************************************
-*@brief   Get the current task's Process Stack Pointer (PSP) value.
+*@brief   Returns the current PSP value for the running task.
 *@details
-*         This function retrieves the Process Stack Pointer (PSP) for the currently
-*         running task. It returns the PSP value, which is stored in the `psp_of_tasks`
-*         array at the index corresponding to the current task.
+*         This function fetches the current Process Stack Pointer (PSP) value
+*         for the task that is currently running, based on the `current_task`.
+*         The function returns the address where the current task's stack frame is stored.
 *********************************************************************************
 *@param[in]  None
 *@param[out] None
-*@note
-*         - Ensure that the global variable `current_task` is properly managed to
-*           reflect the currently executing task.
-*         - The function assumes that `psp_of_tasks` is an array where each element
-*           holds the PSP of the corresponding task.
-*@return     The PSP value of the currently running task.
+*@note       Ensure that `current_task` has been properly updated before calling this function.
+*@return     uint32    The current PSP value of the running task (the stack pointer for the task).
 ********************************************************************************/
 uint32 get_psp_value (void)
 {
@@ -484,21 +479,16 @@ uint32 get_psp_value (void)
 }
 
 /********************************************************************************
-*@brief   Save the current task's Process Stack Pointer (PSP) value.
+*@brief   Saves the current PSP value of the running task.
 *@details
-*         This function stores the provided PSP value (`current_psp_value`) for the
-*         currently running task. The PSP is saved in the `psp_of_tasks` array at
-*         the index corresponding to the current task. This allows for future retrieval
-*         of the PSP when switching tasks.
+*         This function stores the provided PSP value for the currently running task
+*         in the `user_tasks` array, ensuring that the task’s stack pointer is saved for
+*         later context restoration.
 *********************************************************************************
-*@param[in]  current_psp_value: The PSP value to be saved for the current task.
-*                                 This value will be stored in the `psp_of_tasks` array.
+*@param[in]  current_psp_value    The current Process Stack Pointer (PSP) value to be saved.
 *@param[out] None
-*@note
-*         - Ensure that the `current_task` global variable correctly tracks the
-*           currently executing task.
-*         - The function assumes that `psp_of_tasks` is properly allocated and indexed
-*           according to tasks.
+*@note       This function is typically called before context switching to save the stack
+*            pointer of the current task.
 *@return     None
 ********************************************************************************/
 void save_psp_value (uint32 current_psp_value)
@@ -507,12 +497,17 @@ void save_psp_value (uint32 current_psp_value)
 }
 
 /********************************************************************************
-*@brief   None
-*@details None
+*@brief   Updates the task that will run next.
+*@details
+*         This function scans through the tasks and selects the next task that is in
+*         the READY state to be executed. If no tasks are in the READY state, the IDLE task
+*         will be selected by default.
 *********************************************************************************
 *@param[in]  None
 *@param[out] None
-*@note       None
+*@note       This function is used for selecting which task should run next based on
+*            the state of the tasks (READY or BLOCKED). The current task pointer (`current_task`)
+*            is updated accordingly. If no READY tasks are available, the IDLE task is selected.
 *@return     None
 ********************************************************************************/
 void update_next_task (void)
@@ -570,12 +565,17 @@ __attribute__((naked)) void switch_sp_to_psp (void)
 }
 
 /********************************************************************************
-*@brief   None
-*@details None
+*@brief   Schedules the next task to run.
+*@details
+*         This function triggers a PendSV exception to switch to the next task in
+*         a round-robin manner. PendSV is a special exception used for context switching.
+*         This function does not directly perform the context switch; it just requests
+*         it by setting a specific bit in the Interrupt Control and State Register (ICSR).
 *********************************************************************************
 *@param[in]  None
 *@param[out] None
-*@note       None
+*@note       This function must be called at an appropriate moment during your
+*            RTOS (Real-Time Operating System) to initiate a context switch between tasks.
 *@return     None
 ********************************************************************************/
 void schedule(void)
@@ -587,12 +587,20 @@ void schedule(void)
 }
 
 /********************************************************************************
-*@brief   None
-*@details None
+*@brief   Delays the current task for a specified number of system ticks.
+*@details
+*         This function blocks the current task for the given number of system ticks.
+*         The `block_count` of the task is updated and the task is moved to the
+*         `TASK_BLOCKED_STATE`. The scheduler is called after updating the task state,
+*         causing the next task to execute.
+*         The function uses an interrupt disabling mechanism to prevent a race condition
+*         while modifying the global task list.
 *********************************************************************************
-*@param[in]  None
+*@param[in]  tick_count - The number of system ticks to delay the task.
 *@param[out] None
-*@note       None
+*@note       The task is blocked and a context switch occurs. After the specified delay,
+*            the task will be unblocked when the global tick count exceeds the `block_count`.
+*            This implementation uses a non-blocking mechanism for delay handling.
 *@return     None
 ********************************************************************************/
 void task_delay(uint32 tick_count)
@@ -613,12 +621,17 @@ void task_delay(uint32 tick_count)
 }
 
 /********************************************************************************
-*@brief   None
-*@details None
+*@brief   PendSV Exception Handler for task context switching.
+*@details
+*         This handler is responsible for saving the context of the currently executing
+*         task and restoring the context of the next task to run. It is invoked in response
+*         to a PendSV exception, typically triggered by a context switch request (i.e. scheduling).
 *********************************************************************************
 *@param[in]  None
 *@param[out] None
-*@note       None
+*@note       This handler performs a full context save and restore, allowing a switch
+*            from one task to another. It manages the task's register state to ensure
+*            proper multitasking operation.
 *@return     None
 ********************************************************************************/
 __attribute__((naked)) void PendSV_Handler(void)
@@ -652,12 +665,13 @@ __attribute__((naked)) void PendSV_Handler(void)
 }
 
 /********************************************************************************
-*@brief   None
-*@details None
+*@brief   Updates the global tick counter.
+*@details This function increments the global tick count variable, which keeps track of the system's tick time.
+           It should be called periodically, typically by a timer interrupt, to ensure proper timing in the task scheduler.
 *********************************************************************************
 *@param[in]  None
 *@param[out] None
-*@note       None
+*@note       This function is crucial for task management and scheduling in a real-time operating system (RTOS) framework.
 *@return     None
 ********************************************************************************/
 void update_global_tick_count(void)
@@ -666,12 +680,14 @@ void update_global_tick_count(void)
 }
 
 /********************************************************************************
-*@brief   None
-*@details None
+*@brief   Unblocks tasks that have finished their delay period.
+*@details This function checks all tasks that are blocked and compares their block count with the global tick count.
+           If the block count matches the current global tick count, the task is unblocked by setting its state to READY.
 *********************************************************************************
 *@param[in]  None
 *@param[out] None
-*@note       None
+*@note       This function is typically called within the system tick handler to periodically check and unblock tasks
+            that are waiting for their delay to expire.
 *@return     None
 ********************************************************************************/
 void unblock_tasks(void)
@@ -689,24 +705,15 @@ void unblock_tasks(void)
 }
 
 /********************************************************************************
-*@brief   SysTick interrupt handler for context switching between tasks.
-*@details
-*         This function is the SysTick interrupt handler, which is called periodically
-*         at the frequency defined by the SysTick timer. It performs the necessary steps
-*         to save the context of the current task, select the next task, and restore the
-*         context of the new task for execution. It facilitates the implementation of
-*         a round-robin scheduling system in a multitasking environment.
+*@brief   Handles the SysTick interrupt to update the global tick count and unblock tasks.
+*@details This function is triggered at regular intervals by the SysTick timer. It updates the global tick count
+           and checks which tasks have completed their delay period. If a task's delay period has ended, it
+           unblocks the task. It then triggers a PendSV exception to switch the context to the next task.
 *********************************************************************************
 *@param[in]  None
 *@param[out] None
-*@note
-*         - This function operates within the SysTick interrupt and assumes the SysTick
-*           interrupt is configured with a high enough frequency to trigger periodic task
-*           switching.
-*         - The use of PSP (Process Stack Pointer) ensures each task has its own stack,
-*           maintaining separation between tasks.
-*         - Context switching is done by storing and restoring register values (R4-R11)
-*           of the currently running task and the task to be switched to.
+*@note       This function is called automatically by the interrupt vector table when the SysTick timer overflows.
+            It is used for time-based task scheduling and context switching.
 *@return     None
 ********************************************************************************/
 void SysTick_Handler (void)
