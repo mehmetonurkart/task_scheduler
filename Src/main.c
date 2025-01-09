@@ -105,6 +105,7 @@ uint32 g_tick_count = INITIAL_ZERO;
  * @{
  */
 
+void idle_tasks(void); 	  /*!  This is task idle */
 void task1_handler(void); /*!  This is task 1 */
 void task2_handler(void); /*!  This is task 2 */
 void task3_handler(void); /*!  This is task 3 */
@@ -118,7 +119,10 @@ uint32 get_psp_value (void);
 void save_psp_value (uint32 current_psp_value);
 void update_next_task (void);
 __attribute__((naked)) void switch_sp_to_psp (void);
+void schedule(void);
 void task_delay(uint32 tick_count);
+void update_global_tick_count(void);
+void unblock_tasks(void);
 
 /*! @} */
 /*==================================================================================================
@@ -211,9 +215,9 @@ void task1_handler(void)
 	while(1)
 	{
 		led_on(LED_GREEN);
-		delay(DELAY_COUNT_1S);
+		task_delay(DELAY_1S);
 		led_off(LED_GREEN);
-		delay(DELAY_COUNT_1S);
+		task_delay(DELAY_1S);
 	}
 }
 
@@ -237,9 +241,9 @@ void task2_handler(void)
 	while(1)
 	{
 		led_on(LED_ORANGE);
-		delay(DELAY_COUNT_500MS);
+		task_delay(DELAY_500MS);
 		led_off(LED_ORANGE);
-		delay(DELAY_COUNT_500MS);
+		task_delay(DELAY_500MS);
 	}
 }
 
@@ -264,9 +268,9 @@ void task3_handler(void)
 	while(1)
 	{
 		led_on(LED_BLUE);
-		delay(DELAY_COUNT_250MS);
+		task_delay(DELAY_250MS);
 		led_off(LED_BLUE);
-		delay(DELAY_COUNT_250MS);
+		task_delay(DELAY_250MS);
 	}
 }
 
@@ -291,9 +295,9 @@ void task4_handler(void)
 	while(1)
 	{
 		led_on(LED_RED);
-		delay(DELAY_COUNT_125MS);
+		task_delay(DELAY_125MS);
 		led_off(LED_RED);
-		delay(DELAY_COUNT_125MS);
+		task_delay(DELAY_125MS);
 	}
 }
 
@@ -386,11 +390,11 @@ __attribute__ ((naked)) void init_scheduler_stack(uint32 sched_top_of_stack)
 void init_tasks_stack (void)
 {
 
-	user_tasks[IDLETASK].current_state 	= TASK_RUNNING_STATE;
-	user_tasks[TASK1].current_state 	= TASK_RUNNING_STATE;
-	user_tasks[TASK2].current_state 	= TASK_RUNNING_STATE;
-	user_tasks[TASK3].current_state 	= TASK_RUNNING_STATE;
-	user_tasks[TASK4].current_state 	= TASK_RUNNING_STATE;
+	user_tasks[IDLETASK].current_state 	= TASK_READY_STATE;
+	user_tasks[TASK1].current_state 	= TASK_READY_STATE;
+	user_tasks[TASK2].current_state 	= TASK_READY_STATE;
+	user_tasks[TASK3].current_state 	= TASK_READY_STATE;
+	user_tasks[TASK4].current_state 	= TASK_READY_STATE;
 
 	user_tasks[IDLETASK].psp_value 		= IDLE_STACK_START;
 	user_tasks[TASK1].psp_value 		= T1_STACK_START;
@@ -406,7 +410,7 @@ void init_tasks_stack (void)
 
 	uint32 *pPSP;
 
-	for(uint8 TaskIndex = TASK1; TaskIndex < NUMBEROFTASK; TaskIndex++ )
+	for(uint8 TaskIndex = IDLETASK; TaskIndex < NUMBEROFTASK; TaskIndex++ )
 	{
 		pPSP = (uint32 *)user_tasks[TaskIndex].psp_value;
 
@@ -503,25 +507,30 @@ void save_psp_value (uint32 current_psp_value)
 }
 
 /********************************************************************************
-*@brief   Update the current task to the next task in the task list.
-*@details
-*         This function increments the `current_task` index, effectively switching
-*         to the next task. If the index reaches the maximum number of tasks, it wraps
-*         around to 0, allowing for cyclic task scheduling.
+*@brief   None
+*@details None
 *********************************************************************************
 *@param[in]  None
 *@param[out] None
-*@note
-*         - Ensure that the `current_task` variable is properly initialized to a valid task
-*           index before using this function.
-*         - The function assumes that `MAX_TASKS` is the total number of tasks that can be
-*           scheduled.
+*@note       None
 *@return     None
 ********************************************************************************/
 void update_next_task (void)
 {
+  current_state_t state = TASK_BLOCKED_STATE;
+
+  for (uint8 TaskIndex= IDLETASK; TaskIndex < NUMBEROFTASK; TaskIndex++)
+  {
 	current_task++;
 	current_task %= NUMBEROFTASK;
+	state = user_tasks[current_task].current_state;
+	if( (TASK_READY_STATE == state ) && (IDLETASK != current_task) )
+	  break;
+  }
+  if(state != TASK_READY_STATE)
+  {
+	current_task = IDLETASK;
+  }
 }
 
 /********************************************************************************
@@ -569,34 +578,50 @@ __attribute__((naked)) void switch_sp_to_psp (void)
 *@note       None
 *@return     None
 ********************************************************************************/
-void task_delay(uint32 tick_count)
+void schedule(void)
 {
-  user_tasks[current_task].block_count = g_tick_count + tick_count;
-  user_tasks[current_task].current_state = TASK_BLOCKED_STATE;
+  /*! pend the pendsv exception */
+  uint32 *pICSR = (uint32 *) 0xE000ED04;
+  *pICSR |= (1 << 28);
+
 }
 
 /********************************************************************************
-*@brief   SysTick interrupt handler for context switching between tasks.
-*@details
-*         This function is the SysTick interrupt handler, which is called periodically
-*         at the frequency defined by the SysTick timer. It performs the necessary steps
-*         to save the context of the current task, select the next task, and restore the
-*         context of the new task for execution. It facilitates the implementation of
-*         a round-robin scheduling system in a multitasking environment.
+*@brief   None
+*@details None
 *********************************************************************************
 *@param[in]  None
 *@param[out] None
-*@note
-*         - This function operates within the SysTick interrupt and assumes the SysTick
-*           interrupt is configured with a high enough frequency to trigger periodic task
-*           switching.
-*         - The use of PSP (Process Stack Pointer) ensures each task has its own stack,
-*           maintaining separation between tasks.
-*         - Context switching is done by storing and restoring register values (R4-R11)
-*           of the currently running task and the task to be switched to.
+*@note       None
 *@return     None
 ********************************************************************************/
-__attribute__((naked)) void SysTick_Handler (void)
+void task_delay(uint32 tick_count)
+{
+  /*! disable interrupt (it will be race condition because this variable (usertasks) is global variable.) */
+  INTERRUPT_DISABLE();
+
+  if(IDLETASK != current_task)
+  {
+	user_tasks[current_task].block_count = g_tick_count + tick_count;
+	user_tasks[current_task].current_state = TASK_BLOCKED_STATE;
+	schedule();
+  }
+
+   /*! enable interrupt (it will be race condition because this variable (usertasks) is global variable.) */
+  INTERRUPT_ENABLE();
+
+}
+
+/********************************************************************************
+*@brief   None
+*@details None
+*********************************************************************************
+*@param[in]  None
+*@param[out] None
+*@note       None
+*@return     None
+********************************************************************************/
+__attribute__((naked)) void PendSV_Handler(void)
 {
 	/*! Save the context of current task */
 	/*! 1.Get current running task's PSP value */
@@ -624,6 +649,76 @@ __attribute__((naked)) void SysTick_Handler (void)
 	__asm volatile ("MSR PSP, R0");
 	__asm volatile ("POP {LR}");
 	__asm volatile ("BX LR");
+}
+
+/********************************************************************************
+*@brief   None
+*@details None
+*********************************************************************************
+*@param[in]  None
+*@param[out] None
+*@note       None
+*@return     None
+********************************************************************************/
+void update_global_tick_count(void)
+{
+  g_tick_count++;
+}
+
+/********************************************************************************
+*@brief   None
+*@details None
+*********************************************************************************
+*@param[in]  None
+*@param[out] None
+*@note       None
+*@return     None
+********************************************************************************/
+void unblock_tasks(void)
+{
+  for (uint8 TaskIndex= TASK1; TaskIndex < NUMBEROFTASK; TaskIndex++)
+  {
+	if(user_tasks[TaskIndex].current_state != TASK_READY_STATE)
+	{
+	  if(user_tasks[TaskIndex].block_count == g_tick_count)
+	  {
+		user_tasks[TaskIndex].current_state = TASK_READY_STATE;
+	  }
+	}
+  }
+}
+
+/********************************************************************************
+*@brief   SysTick interrupt handler for context switching between tasks.
+*@details
+*         This function is the SysTick interrupt handler, which is called periodically
+*         at the frequency defined by the SysTick timer. It performs the necessary steps
+*         to save the context of the current task, select the next task, and restore the
+*         context of the new task for execution. It facilitates the implementation of
+*         a round-robin scheduling system in a multitasking environment.
+*********************************************************************************
+*@param[in]  None
+*@param[out] None
+*@note
+*         - This function operates within the SysTick interrupt and assumes the SysTick
+*           interrupt is configured with a high enough frequency to trigger periodic task
+*           switching.
+*         - The use of PSP (Process Stack Pointer) ensures each task has its own stack,
+*           maintaining separation between tasks.
+*         - Context switching is done by storing and restoring register values (R4-R11)
+*           of the currently running task and the task to be switched to.
+*@return     None
+********************************************************************************/
+void SysTick_Handler (void)
+{
+
+  uint32 *pICSR = (uint32 *) 0xE000ED04;
+
+  update_global_tick_count();
+
+  unblock_tasks();
+  /*! pend the pendsv exception */
+  *pICSR |= (1 << 28);
 
 }
 

@@ -29,6 +29,10 @@
 /*==================================================================================================
  *                                       DEFINES AND MACROS
  ==================================================================================================*/
+#define INTERRUPT_DISABLE() do{ __asm volatile ("MOV R0, #1"); __asm volatile ("MSR PRIMASK, R0"); } while(0);
+
+#define INTERRUPT_ENABLE()  do{ __asm volatile ("MOV R0, #0"); __asm volatile ("MSR PRIMASK, R0"); } while(0);
+
 /* some stack memory calculations */
 #define SIZE_TASK_STACK 		1024U
 #define SIZE_SCHEDULER_STACK	1024U
@@ -89,7 +93,7 @@ typedef enum
 
 typedef enum
 {
-  TASK_RUNNING_STATE = 0,
+  TASK_READY_STATE 	 = 0,
   TASK_BLOCKED_STATE = 1
 }current_state_t;
 /*==================================================================================================
