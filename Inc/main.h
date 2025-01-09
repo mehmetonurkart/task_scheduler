@@ -41,7 +41,8 @@
 #define T2_STACK_START			((SRAM_END) - (1 * SIZE_TASK_STACK))
 #define T3_STACK_START			((SRAM_END) - (2 * SIZE_TASK_STACK))
 #define T4_STACK_START			((SRAM_END) - (3 * SIZE_TASK_STACK))
-#define SCHEDULER_STACK_START	((SRAM_END) - (4 * SIZE_TASK_STACK))
+#define IDLE_STACK_START		((SRAM_END) - (4 * SIZE_TASK_STACK))
+#define SCHEDULER_STACK_START	((SRAM_END) - (5 * SIZE_TASK_STACK))
 
 #define TICK_HZ 				1000U
 
@@ -54,18 +55,18 @@
 #define RELOAD_VALUE_OFFSET		1 /* The * RELOAD value is calculated according to its use. For example, to generate a multi-shot
 timer with a period of N processor clock cycles, use a RELOAD value of N-1. */
 
-#define MAX_TASKS 				4
 #define INITIAL_ZERO			0
 /*==================================================================================================
  *                                             ENUMS
  ==================================================================================================*/
 typedef enum
 {
-	TASK1 			= 0,
-	TASK2 			= 1,
-	TASK3 			= 2,
-	TASK4 			= 3,
-	NUMBEROFTASK 	= 4
+	IDLETASK		= 0,
+	TASK1 			= 1,
+	TASK2 			= 2,
+	TASK3 			= 3,
+	TASK4 			= 4,
+	NUMBEROFTASK 	= 5
 }eTaskIndex_t;
 
 typedef enum
@@ -85,9 +86,22 @@ typedef enum
 	R4              = 12,
 	NUMBEROFINST 	= 13
 }eInstructionIndex_t;
+
+typedef enum
+{
+  TASK_RUNNING_STATE = 0,
+  TASK_BLOCKED_STATE = 1
+}current_state_t;
 /*==================================================================================================
  *                                 STRUCTURES AND OTHER TYPEDEFS
  ==================================================================================================*/
+typedef struct
+{
+  uint32 psp_value;
+  uint32 block_count;
+  current_state_t current_state;
+  void (*task_handler)(void);
+}TCB_t;
 /*==================================================================================================
  *                                 GLOBAL VARIABLE DECLARATIONS
  ==================================================================================================*/

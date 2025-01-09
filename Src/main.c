@@ -55,10 +55,10 @@ RAM_START																																			                                    
   #warning "FPU is not initialized, but the project is compiling for an FPU. Please initialize the FPU before use."
 #endif
 /*==================================================================================================
- *                                       LOCAL MACROS
+ *                                       DEFINES AND LOCAL MACROS
  ==================================================================================================*/
 /*!
- * @addtogroup define_local_macros
+ * @addtogroup defines_local_macros
  * @{
  */
 
@@ -67,7 +67,7 @@ RAM_START																																			                                    
  *                          LOCAL TYPEDEFS (STRUCTURES, UNIONS, ENUMS)
  ==================================================================================================*/
 /*!
- * @addtogroup define_local_typedefs
+ * @addtogroup local_typedefs
  * @{
  */
 
@@ -76,7 +76,7 @@ RAM_START																																			                                    
  *                                       LOCAL VARIABLES
  ==================================================================================================*/
 /*!
- * @addtogroup define_local_variables
+ * @addtogroup local_variables
  * @{
  */
 
@@ -85,19 +85,23 @@ RAM_START																																			                                    
  *                                      GLOBAL VARIABLES
  ==================================================================================================*/
 /*!
- * @addtogroup define_global_variables
+ * @addtogroup global_variables
  * @{
  */
-uint32 psp_of_tasks[MAX_TASKS] = {T1_STACK_START, T2_STACK_START, T3_STACK_START, T4_STACK_START};
-uint32 task_handlers[MAX_TASKS];
+/*!
+ * @brief
+ */
+
+TCB_t user_tasks[NUMBEROFTASK];
 uint8 current_task = TASK1; /*! Task1 is running */
+uint32 g_tick_count = INITIAL_ZERO;
 
 /*! @} */
 /*==================================================================================================
  *                                    FUNCTION PROTOTYPES
  ==================================================================================================*/
 /*!
- * @addtogroup define_function_prototypes
+ * @addtogroup function_prototypes
  * @{
  */
 
@@ -114,13 +118,14 @@ uint32 get_psp_value (void);
 void save_psp_value (uint32 current_psp_value);
 void update_next_task (void);
 __attribute__((naked)) void switch_sp_to_psp (void);
+void task_delay(uint32 tick_count);
 
 /*! @} */
 /*==================================================================================================
  *                                       LOCAL FUNCTIONS
  ==================================================================================================*/
 /*!
- * @addtogroup define_local_functions
+ * @addtogroup local_functions
  * @{
  */
 
@@ -129,7 +134,7 @@ __attribute__((naked)) void switch_sp_to_psp (void);
  *                                         FUNCTIONS
  ==================================================================================================*/
 /*!
- * @addtogroup define_functions
+ * @addtogroup functions
  * @{
  */
 
@@ -158,11 +163,6 @@ int main(void)
 
 	init_scheduler_stack(SCHEDULER_STACK_START);
 
-	task_handlers[TASK1] = (uint32 ) task1_handler;
-	task_handlers[TASK2] = (uint32 ) task2_handler;
-	task_handlers[TASK3] = (uint32 ) task3_handler;
-	task_handlers[TASK4] = (uint32 ) task4_handler;
-
 	init_tasks_stack();
 
 	led_init_all();
@@ -174,6 +174,20 @@ int main(void)
 	task1_handler();
 
 	for(;;);
+}
+
+/********************************************************************************
+*@brief   None
+*@details None
+*********************************************************************************
+*@param[in]  None
+*@param[out] None
+*@note       None
+*@return     None
+********************************************************************************/
+void idle_task(void)
+{
+  while(1);
 }
 
 /********************************************************************************
@@ -372,17 +386,35 @@ __attribute__ ((naked)) void init_scheduler_stack(uint32 sched_top_of_stack)
 void init_tasks_stack (void)
 {
 
+	user_tasks[IDLETASK].current_state 	= TASK_RUNNING_STATE;
+	user_tasks[TASK1].current_state 	= TASK_RUNNING_STATE;
+	user_tasks[TASK2].current_state 	= TASK_RUNNING_STATE;
+	user_tasks[TASK3].current_state 	= TASK_RUNNING_STATE;
+	user_tasks[TASK4].current_state 	= TASK_RUNNING_STATE;
+
+	user_tasks[IDLETASK].psp_value 		= IDLE_STACK_START;
+	user_tasks[TASK1].psp_value 		= T1_STACK_START;
+	user_tasks[TASK2].psp_value 		= T2_STACK_START;
+	user_tasks[TASK3].psp_value 		= T3_STACK_START;
+	user_tasks[TASK4].psp_value 		= T4_STACK_START;
+
+	user_tasks[IDLETASK].task_handler 	= idle_task;
+	user_tasks[TASK1].task_handler 		= task1_handler;
+	user_tasks[TASK2].task_handler 		= task2_handler;
+	user_tasks[TASK3].task_handler 		= task3_handler;
+	user_tasks[TASK4].task_handler 		= task4_handler;
+
 	uint32 *pPSP;
 
 	for(uint8 TaskIndex = TASK1; TaskIndex < NUMBEROFTASK; TaskIndex++ )
 	{
-		pPSP = (uint32 *)psp_of_tasks[TaskIndex];
+		pPSP = (uint32 *)user_tasks[TaskIndex].psp_value;
 
 		pPSP--; /*! xPSR */
 		*pPSP = DUMMY_XPSR; /*! 0x01000000 */
 
 		pPSP--; /*! PC */
-		*pPSP = task_handlers[TaskIndex];
+		*pPSP = (uint32) user_tasks[TaskIndex].task_handler;
 
 		pPSP--; /*! LR */
 		*pPSP = LR_PSP_TO_PSP;
@@ -393,7 +425,7 @@ void init_tasks_stack (void)
 			*pPSP = INITIAL_ZERO;
 		}
 
-		psp_of_tasks[TaskIndex] = (uint32) pPSP;
+		user_tasks[TaskIndex].psp_value = (uint32) pPSP;
 	}
 }
 
@@ -444,7 +476,7 @@ void enable_processor_faults (void)
 uint32 get_psp_value (void)
 {
 
-	return psp_of_tasks[current_task];
+	return user_tasks[current_task].psp_value;
 }
 
 /********************************************************************************
@@ -467,7 +499,7 @@ uint32 get_psp_value (void)
 ********************************************************************************/
 void save_psp_value (uint32 current_psp_value)
 {
-	psp_of_tasks[current_task] = current_psp_value;
+	user_tasks[current_task].psp_value = current_psp_value;
 }
 
 /********************************************************************************
@@ -489,7 +521,7 @@ void save_psp_value (uint32 current_psp_value)
 void update_next_task (void)
 {
 	current_task++;
-	current_task %= MAX_TASKS;
+	current_task %= NUMBEROFTASK;
 }
 
 /********************************************************************************
@@ -526,6 +558,21 @@ __attribute__((naked)) void switch_sp_to_psp (void)
 	__asm volatile ("MSR CONTROL, R0");
 	__asm volatile ("BX LR");
 
+}
+
+/********************************************************************************
+*@brief   None
+*@details None
+*********************************************************************************
+*@param[in]  None
+*@param[out] None
+*@note       None
+*@return     None
+********************************************************************************/
+void task_delay(uint32 tick_count)
+{
+  user_tasks[current_task].block_count = g_tick_count + tick_count;
+  user_tasks[current_task].current_state = TASK_BLOCKED_STATE;
 }
 
 /********************************************************************************

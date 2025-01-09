@@ -7,6 +7,7 @@
 *.map
 *.list
 *.launch
+*.mk
 External_Library/doxygen/html/search/pages_8.js
 External_Library/doxygen/html/search/pages_9.js
 External_Library/doxygen/html/search/pages_a.js
