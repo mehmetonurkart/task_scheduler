@@ -6,6 +6,7 @@
 *.cyclo
 *.map
 *.list
+*.log
 *.launch
 *.mk
 External_Library/doxygen/html/search/pages_8.js
